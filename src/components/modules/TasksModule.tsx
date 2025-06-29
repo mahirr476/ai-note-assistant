@@ -1,4 +1,4 @@
-// src/components/modules/TasksModule.tsx (Updated with Todo Lists)
+// src/components/modules/TasksModule.tsx (Fixed)
 import React, { useState, useMemo } from 'react';
 import { ModuleData, Task } from '../../types/modules';
 import { TasksSidebar } from './management/tasks/TasksSidebar';
@@ -6,6 +6,7 @@ import { TasksMainView } from './management/tasks/TasksMainView';
 import { TodoListsView } from './management/tasks/TodoListsView';
 import { TaskModal } from './management/tasks/TaskModal';
 import { CreateTodoListModal } from './management/tasks/CreateTodoListModal';
+import { TasksHeader } from './management/tasks/TasksHeader';
 
 export type TaskViewMode = 'list' | 'grid' | 'kanban' | 'todo-lists';
 export type TaskSortBy = 'priority' | 'dueDate' | 'category' | 'created' | 'updated';
@@ -15,6 +16,8 @@ interface TasksModuleProps {
   moduleData: ModuleData;
   setModuleData: (data: ModuleData) => void;
 }
+
+
 
 export const TasksModule: React.FC<TasksModuleProps> = ({
   moduleData,
@@ -34,7 +37,7 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
 
   // Filtering and sorting logic
   const filteredAndSortedTasks = useMemo(() => {
-    let filtered = moduleData.tasks;
+    let filtered = moduleData.tasks || []; // Added fallback for undefined tasks
 
     // Apply search filter
     if (searchTerm) {
@@ -103,7 +106,7 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
   // Todo lists count
   const todoListsCount = useMemo(() => {
     const todoListTags = new Set<string>();
-    moduleData.tasks.forEach(task => {
+    (moduleData.tasks || []).forEach(task => { // Added fallback
       task.tags.forEach(tag => {
         if (tag.startsWith('todo-list:')) {
           todoListTags.add(tag);
@@ -131,13 +134,13 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
 
     const updatedData = {
       ...moduleData,
-      tasks: [newTask, ...moduleData.tasks]
+      tasks: [newTask, ...(moduleData.tasks || [])] // Added fallback
     };
     setModuleData(updatedData);
   };
 
   const updateTask = (taskId: string, updates: Partial<Task>) => {
-    const updatedTasks = moduleData.tasks.map(task =>
+    const updatedTasks = (moduleData.tasks || []).map(task => // Added fallback
       task.id === taskId
         ? { ...task, ...updates, updatedAt: new Date().toISOString() }
         : task
@@ -146,13 +149,14 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
   };
 
   const deleteTask = (taskId: string) => {
-    const updatedTasks = moduleData.tasks.filter(task => task.id !== taskId);
+    const updatedTasks = (moduleData.tasks || []).filter(task => task.id !== taskId); // Added fallback
     setModuleData({ ...moduleData, tasks: updatedTasks });
   };
 
   const toggleTaskComplete = (taskId: string) => {
+    const task = (moduleData.tasks || []).find(t => t.id === taskId); // Added fallback
     updateTask(taskId, { 
-      completed: !moduleData.tasks.find(t => t.id === taskId)?.completed 
+      completed: !task?.completed 
     });
   };
 
@@ -176,13 +180,13 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
   };
 
   const handleBulkDelete = () => {
-    const updatedTasks = moduleData.tasks.filter(task => !selectedTasks.has(task.id));
+    const updatedTasks = (moduleData.tasks || []).filter(task => !selectedTasks.has(task.id)); // Added fallback
     setModuleData({ ...moduleData, tasks: updatedTasks });
     setSelectedTasks(new Set());
   };
 
   const handleBulkComplete = () => {
-    const updatedTasks = moduleData.tasks.map(task =>
+    const updatedTasks = (moduleData.tasks || []).map(task => // Added fallback
       selectedTasks.has(task.id)
         ? { ...task, completed: true, updatedAt: new Date().toISOString() }
         : task
@@ -197,6 +201,11 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
 
   const handleTodoListSave = (todoListData: any) => {
     const updatedData = { ...moduleData };
+    
+    // Ensure tasks array exists
+    if (!updatedData.tasks) {
+      updatedData.tasks = [];
+    }
     
     // Create new tasks
     for (const newTask of todoListData.newTasks || []) {
@@ -237,14 +246,15 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
 
   // Get statistics
   const taskStats = useMemo(() => {
-    const total = moduleData.tasks.length;
-    const completed = moduleData.tasks.filter(t => t.completed).length;
+    const tasks = moduleData.tasks || []; // Added fallback
+    const total = tasks.length;
+    const completed = tasks.filter(t => t.completed).length;
     const pending = total - completed;
-    const overdue = moduleData.tasks.filter(t => {
+    const overdue = tasks.filter(t => {
       if (!t.dueDate || t.completed) return false;
       return new Date(t.dueDate) < new Date();
     }).length;
-    const highPriority = moduleData.tasks.filter(t => t.priority === 'high' && !t.completed).length;
+    const highPriority = tasks.filter(t => t.priority === 'high' && !t.completed).length;
 
     return { total, completed, pending, overdue, highPriority, todoLists: todoListsCount };
   }, [moduleData.tasks, todoListsCount]);
@@ -252,35 +262,51 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
   const renderMainContent = () => {
     if (viewMode === 'todo-lists') {
       return (
-        <TodoListsView
-          tasks={moduleData.tasks}
-          onTaskClick={handleEditTask}
-          onTaskComplete={toggleTaskComplete}
-          onTaskDelete={deleteTask}
-        />
+        <div className="flex-1 flex flex-col h-full w-full">
+          {/* Header for Todo Lists */}
+          <TasksHeader
+            taskStats={taskStats}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            selectedCount={0}
+          />
+          
+          {/* Todo Lists Content - Full Width */}
+          <div className="flex-1 overflow-hidden w-full">
+            <TodoListsView
+              tasks={moduleData.tasks || []} // Added fallback
+              onTaskClick={handleEditTask}
+              onTaskComplete={toggleTaskComplete}
+              onTaskDelete={deleteTask}
+              onCreateTodoList={handleCreateTodoList}
+            />
+          </div>
+        </div>
       );
     }
 
     return (
-      <TasksMainView
-        tasks={filteredAndSortedTasks}
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-        selectedTasks={selectedTasks}
-        setSelectedTasks={setSelectedTasks}
-        onTaskClick={handleEditTask}
-        onTaskComplete={toggleTaskComplete}
-        onTaskDelete={deleteTask}
-        taskStats={taskStats}
-      />
+      <div className="flex-1 w-full">
+        <TasksMainView
+          tasks={filteredAndSortedTasks}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          selectedTasks={selectedTasks}
+          setSelectedTasks={setSelectedTasks}
+          onTaskClick={handleEditTask}
+          onTaskComplete={toggleTaskComplete}
+          onTaskDelete={deleteTask}
+          taskStats={taskStats}
+        />
+      </div>
     );
   };
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen w-full">
       {/* Sidebar */}
       <TasksSidebar
-        tasks={moduleData.tasks}
+        tasks={moduleData.tasks || []} // Added fallback
         filteredTasks={filteredAndSortedTasks}
         taskStats={taskStats}
         searchTerm={searchTerm}
@@ -299,7 +325,7 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col h-full">
+      <div className="flex-1 flex flex-col h-full w-full overflow-hidden">
         {renderMainContent()}
       </div>
 
@@ -315,7 +341,7 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
       {/* Todo List Modal */}
       {showTodoListModal && (
         <CreateTodoListModal
-          tasks={moduleData.tasks}
+          tasks={moduleData.tasks || []} // Added fallback
           onClose={() => setShowTodoListModal(false)}
           onSave={handleTodoListSave}
         />
@@ -323,3 +349,6 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
     </div>
   );
 };
+
+// Export the component (this was missing!)
+export default TasksModule;

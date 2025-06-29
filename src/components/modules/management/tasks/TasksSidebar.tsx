@@ -1,14 +1,13 @@
-// src/components/modules/tasks/TasksSidebar.tsx
-import React from 'react';
-import { Search, Plus, Filter, ListTodo, Trash2, Check, LayoutGrid, List, Columns } from 'lucide-react';
-import { Button } from '../../../ui/button';
+// src/components/modules/tasks/TasksSidebar.tsx (Fixed Layout)
+import React, { useState } from 'react';
+import { Search, Filter, SortAsc, Plus, ListTodo, CheckSquare, Calendar, Flag, Target, TrendingUp, Clock, Settings, Archive, Zap, BarChart3, ChevronRight, Star, AlertCircle } from 'lucide-react';
 import { Input } from '../../../ui/input';
-import { Card, CardContent } from '../../../ui/card';
+import { Button } from '../../../ui/button';
 import { Badge } from '../../../ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../ui/select';
-import { Separator } from '../../../ui/separator';
-import { TaskSortBy, TaskFilterBy, TaskViewMode } from '../../TasksModule';
+import { ScrollArea } from '../../../ui/scroll-area';
+import { Progress } from '../../../ui/progress';
 import { Task } from '../../../../types/modules';
+import { TaskViewMode, TaskSortBy, TaskFilterBy } from '../../TasksModule';
 
 interface TasksSidebarProps {
   tasks: Task[];
@@ -37,6 +36,8 @@ interface TasksSidebarProps {
 }
 
 export const TasksSidebar: React.FC<TasksSidebarProps> = ({
+  tasks,
+  filteredTasks,
   taskStats,
   searchTerm,
   setSearchTerm,
@@ -46,214 +47,201 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({
   setSortBy,
   selectedTasks,
   viewMode,
-  setViewMode,
   onBulkDelete,
   onBulkComplete,
   onCreateTask,
   onCreateTodoList
 }) => {
   const filterOptions = [
-    { value: 'all', label: 'All Tasks', count: taskStats.total },
-    { value: 'pending', label: 'Pending', count: taskStats.pending },
-    { value: 'completed', label: 'Completed', count: taskStats.completed },
-    { value: 'overdue', label: 'Overdue', count: taskStats.overdue },
-    { value: 'today', label: 'Due Today', count: 0 },
-    { value: 'thisWeek', label: 'This Week', count: 0 }
+    { value: 'all' as TaskFilterBy, label: 'All Tasks', icon: ListTodo, count: taskStats.total },
+    { value: 'pending' as TaskFilterBy, label: 'Pending', icon: Clock, count: taskStats.pending },
+    { value: 'completed' as TaskFilterBy, label: 'Completed', icon: CheckSquare, count: taskStats.completed },
+    { value: 'overdue' as TaskFilterBy, label: 'Overdue', icon: Flag, count: taskStats.overdue },
+    { value: 'today' as TaskFilterBy, label: 'Due Today', icon: Calendar, count: 0 },
+    { value: 'thisWeek' as TaskFilterBy, label: 'This Week', icon: TrendingUp, count: 0 }
   ];
 
-  const viewModeButtons = [
-    { mode: 'list' as TaskViewMode, icon: List, label: 'List' },
-    { mode: 'grid' as TaskViewMode, icon: LayoutGrid, label: 'Grid' },
-    { mode: 'kanban' as TaskViewMode, icon: Columns, label: 'Kanban' },
-    { mode: 'todo-lists' as TaskViewMode, icon: ListTodo, label: 'Todo Lists' }
+  const sortOptions = [
+    { value: 'priority' as TaskSortBy, label: 'Priority', icon: Flag },
+    { value: 'dueDate' as TaskSortBy, label: 'Due Date', icon: Calendar },
+    { value: 'category' as TaskSortBy, label: 'Category', icon: Target },
+    { value: 'created' as TaskSortBy, label: 'Created', icon: Plus },
+    { value: 'updated' as TaskSortBy, label: 'Updated', icon: Clock }
   ];
+
+  // Todo list specific options
+  const todoListFilterOptions = [
+    { value: 'all' as TaskFilterBy, label: 'All Lists', icon: ListTodo, count: taskStats.todoLists },
+    { value: 'pending' as TaskFilterBy, label: 'With Pending', icon: Clock, count: taskStats.pending },
+    { value: 'completed' as TaskFilterBy, label: 'Completed Lists', icon: CheckSquare, count: 0 },
+    { value: 'overdue' as TaskFilterBy, label: 'With Overdue', icon: Flag, count: taskStats.overdue },
+  ];
+
+  // Get recent activity
+  const getRecentActivity = () => {
+    if (viewMode === 'todo-lists') {
+      return tasks
+        .filter(task => task.tags.some(tag => tag.startsWith('todo-list:')))
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+        .slice(0, 4);
+    } else {
+      return tasks
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+        .slice(0, 4);
+    }
+  };
+
+  const recentActivity = getRecentActivity();
+
+  // Todo list specific stats
+  const todoListTasks = tasks.filter(task => task.tags.some(tag => tag.startsWith('todo-list:')));
+  const todoListStats = {
+    lists: taskStats.todoLists,
+    tasks: todoListTasks.length,
+    completed: todoListTasks.filter(t => t.completed).length,
+    overdue: todoListTasks.filter(t => {
+      if (!t.dueDate || t.completed) return false;
+      return new Date(t.dueDate) < new Date();
+    }).length
+  };
 
   return (
-    <div className="w-80 border-r bg-card flex flex-col h-full">
+    <div className="w-80 h-full bg-background border-r border-border flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold">Tasks</h1>
-            <p className="text-sm text-muted-foreground">
-              {taskStats.pending} pending, {taskStats.completed} completed
-            </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button onClick={onCreateTodoList} size="icon" variant="outline" className="h-8 w-8">
-              <ListTodo className="h-4 w-4" />
-            </Button>
-            <Button onClick={onCreateTask} size="icon" variant="outline" className="h-8 w-8">
+      <div className="p-4 border-b border-border">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-lg">
+            {viewMode === 'todo-lists' ? 'Todo Lists' : 'Tasks'}
+          </h2>
+          {viewMode === 'todo-lists' ? (
+            <Button onClick={onCreateTodoList} size="sm" className="gap-2">
               <Plus className="h-4 w-4" />
+              New
             </Button>
-          </div>
+          ) : (
+            <Button onClick={onCreateTask} size="sm" className="gap-2">
+              <Plus className="h-4 w-4" />
+              New
+            </Button>
+          )}
         </div>
 
-        {/* Search - only show for non-todo-lists view */}
-        {viewMode !== 'todo-lists' && (
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Search tasks..."
-              value={searchTerm}
-              onChange={(e: { target: { value: string; }; }) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        )}
-      </div>
-
-      {/* View Mode Toggle */}
-      <div className="p-4 border-b">
-        <div className="space-y-2">
-          <label className="text-xs text-muted-foreground">View Mode</label>
-          <div className="grid grid-cols-2 gap-1">
-            {viewModeButtons.map(({ mode, icon: Icon, label }) => (
-              <Button
-                key={mode}
-                onClick={() => setViewMode(mode)}
-                variant={viewMode === mode ? "default" : "outline"}
-                size="sm"
-                className="gap-1 text-xs"
-              >
-                <Icon className="h-3 w-3" />
-                {label === 'Todo Lists' ? 'Lists' : label}
-              </Button>
-            ))}
-          </div>
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={viewMode === 'todo-lists' ? 'Search lists and tasks...' : 'Search tasks...'}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="p-4 space-y-3">
-        <div className="grid grid-cols-2 gap-2">
-          <Card className="p-3">
-            <div className="text-center">
-              <div className="text-lg font-bold text-blue-600">{taskStats.pending}</div>
-              <div className="text-xs text-muted-foreground">Pending</div>
-            </div>
-          </Card>
-          <Card className="p-3">
-            <div className="text-center">
-              <div className="text-lg font-bold text-green-600">{taskStats.completed}</div>
-              <div className="text-xs text-muted-foreground">Completed</div>
-            </div>
-          </Card>
-        </div>
-        
-        {taskStats.todoLists > 0 && (
-          <Card className="p-3 border-purple-200 bg-purple-50 dark:bg-purple-950/20">
-            <div className="text-center">
-              <div className="text-lg font-bold text-purple-600">{taskStats.todoLists}</div>
-              <div className="text-xs text-purple-600">Todo Lists</div>
-            </div>
-          </Card>
-        )}
-        
-        {taskStats.overdue > 0 && (
-          <Card className="p-3 border-red-200 bg-red-50 dark:bg-red-950/20">
-            <div className="text-center">
-              <div className="text-lg font-bold text-red-600">{taskStats.overdue}</div>
-              <div className="text-xs text-red-600">Overdue</div>
-            </div>
-          </Card>
-        )}
-
-        {taskStats.highPriority > 0 && (
-          <Card className="p-3 border-orange-200 bg-orange-50 dark:bg-orange-950/20">
-            <div className="text-center">
-              <div className="text-lg font-bold text-orange-600">{taskStats.highPriority}</div>
-              <div className="text-xs text-orange-600">High Priority</div>
-            </div>
-          </Card>
-        )}
-      </div>
-
-      {/* Bulk Actions - only show for non-todo-lists view */}
-      {selectedTasks.size > 0 && viewMode !== 'todo-lists' && (
-        <div className="p-4 border-t border-b bg-accent/50">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">
-              {selectedTasks.size} selected
-            </span>
-            <div className="flex space-x-2">
-              <Button onClick={onBulkComplete} size="sm" variant="outline" className="gap-1">
-                <Check className="h-3 w-3" />
-                Complete
-              </Button>
-              <Button onClick={onBulkDelete} size="sm" variant="outline" className="gap-1 text-destructive">
-                <Trash2 className="h-3 w-3" />
-                Delete
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Filters - only show for non-todo-lists view */}
-      {viewMode !== 'todo-lists' && (
-        <div className="p-4 space-y-4 flex-1 overflow-auto">
-          <div>
-            <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
-              <Filter className="h-4 w-4" />
-              Filter & Sort
+      <ScrollArea className="flex-1">
+        <div className="p-4 space-y-6">
+          {/* Progress Overview */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              {viewMode === 'todo-lists' ? 'Lists Overview' : 'Overview'}
             </h3>
             
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Filter by</label>
-                <Select value={filterBy} onValueChange={(value: TaskFilterBy) => setFilterBy(value)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filterOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        <div className="flex items-center justify-between w-full">
-                          <span>{option.label}</span>
-                          <Badge variant="secondary" className="ml-2 text-xs">
-                            {option.count}
-                          </Badge>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Sort by</label>
-                <Select value={sortBy} onValueChange={(value: TaskSortBy) => setSortBy(value)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="priority">Priority</SelectItem>
-                    <SelectItem value="dueDate">Due Date</SelectItem>
-                    <SelectItem value="category">Category</SelectItem>
-                    <SelectItem value="created">Date Created</SelectItem>
-                    <SelectItem value="updated">Last Updated</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="p-4 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border border-blue-200">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Progress</span>
+                  <span className="text-sm text-muted-foreground">
+                    {viewMode === 'todo-lists' 
+                      ? `${todoListStats.completed}/${todoListStats.tasks}`
+                      : `${taskStats.completed}/${taskStats.total}`
+                    }
+                  </span>
+                </div>
+                <Progress 
+                  value={viewMode === 'todo-lists' 
+                    ? (todoListStats.tasks > 0 ? (todoListStats.completed / todoListStats.tasks) * 100 : 0)
+                    : (taskStats.total > 0 ? (taskStats.completed / taskStats.total) * 100 : 0)
+                  } 
+                  className="h-2"
+                />
+                <div className="text-xs text-muted-foreground text-center">
+                  {viewMode === 'todo-lists' 
+                    ? (todoListStats.tasks > 0 ? Math.round((todoListStats.completed / todoListStats.tasks) * 100) : 0)
+                    : (taskStats.total > 0 ? Math.round((taskStats.completed / taskStats.total) * 100) : 0)
+                  }% Complete
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Todo Lists Info - show when in todo-lists view */}
-      {viewMode === 'todo-lists' && (
-        <div className="p-4 flex-1">
-          <div className="text-center text-muted-foreground">
-            <ListTodo className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm font-medium">Todo Lists View</p>
-            <p className="text-xs">Organized task collections</p>
-            {taskStats.todoLists === 0 && (
-              <p className="text-xs mt-2">Create todo lists from your notes to get started!</p>
-            )}
+          {/* Filters */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                {viewMode === 'todo-lists' ? 'List Filters' : 'Filters'}
+              </h3>
+              <Filter className="h-4 w-4 text-muted-foreground" />
+            </div>
+            
+            <div className="space-y-1">
+              {(viewMode === 'todo-lists' ? todoListFilterOptions : filterOptions).map((option) => (
+                <Button
+                  key={option.value}
+                  onClick={() => setFilterBy(option.value)}
+                  variant={filterBy === option.value ? 'secondary' : 'ghost'}
+                  className="w-full justify-between h-9"
+                >
+                  <div className="flex items-center gap-2">
+                    <option.icon className="h-4 w-4" />
+                    {option.label}
+                  </div>
+                  <Badge variant="outline" className="ml-auto">
+                    {option.count}
+                  </Badge>
+                </Button>
+              ))}
+            </div>
           </div>
+
+          {/* Bulk Actions */}
+          {selectedTasks.size > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                Bulk Actions ({selectedTasks.size} selected)
+              </h3>
+              
+              <div className="space-y-2">
+                <Button
+                  onClick={onBulkComplete}
+                  variant="outline"
+                  className="w-full justify-start gap-2 text-green-700 border-green-200 hover:bg-green-50"
+                >
+                  <CheckSquare className="h-4 w-4" />
+                  Mark Complete
+                </Button>
+                <Button
+                  onClick={onBulkDelete}
+                  variant="outline"
+                  className="w-full justify-start gap-2 text-red-700 border-red-200 hover:bg-red-50"
+                >
+                  <Archive className="h-4 w-4" />
+                  Delete Selected
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </ScrollArea>
+
+      {/* Footer */}
+      <div className="p-4 border-t border-border">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>{filteredTasks.length} of {taskStats.total} tasks</span>
+          <Button variant="ghost" size="icon" className="h-6 w-6">
+            <Settings className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };

@@ -148,12 +148,12 @@ export const TasksKanban: React.FC<TasksKanbanProps> = ({
   );
 
   return (
-    <div className="p-4 h-full">
+    <div className="p-4 h-full overflow-hidden">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 h-full">
         {columnConfig.map((column) => (
-          <div key={column.key} className="flex flex-col h-full">
+          <div key={column.key} className="flex flex-col h-full min-h-0">
             {/* Column Header */}
-            <div className={`p-3 rounded-t-lg border-b ${column.color}`}>
+            <div className={`p-3 rounded-t-lg border-b ${column.color} flex-shrink-0`}>
               <div className="flex items-center justify-between">
                 <h3 className="font-medium text-sm">{column.title}</h3>
                 <Badge variant="secondary" className="text-xs">
@@ -163,18 +163,20 @@ export const TasksKanban: React.FC<TasksKanbanProps> = ({
             </div>
 
             {/* Column Content */}
-            <div className={`flex-1 p-3 border-x border-b rounded-b-lg ${column.color}`}>
+            <div className={`flex-1 p-3 border-x border-b rounded-b-lg ${column.color} min-h-0`}>
               <ScrollArea className="h-full">
-                {taskColumns[column.key as keyof typeof taskColumns].length === 0 ? (
-                  <div className="text-center text-muted-foreground py-8">
-                    <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No tasks</p>
-                  </div>
-                ) : (
-                  <div>
-                    {taskColumns[column.key as keyof typeof taskColumns].map(renderTaskCard)}
-                  </div>
-                )}
+                <div className="pr-2">
+                  {taskColumns[column.key as keyof typeof taskColumns].length === 0 ? (
+                    <div className="text-center text-muted-foreground py-8">
+                      <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No tasks</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {taskColumns[column.key as keyof typeof taskColumns].map(renderTaskCard)}
+                    </div>
+                  )}
+                </div>
               </ScrollArea>
             </div>
           </div>

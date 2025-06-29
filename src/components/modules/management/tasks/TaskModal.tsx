@@ -1,3 +1,4 @@
+
 // src/components/modules/tasks/TaskModal.tsx
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Flag, Tag, FileText, Clock, Save } from 'lucide-react';
@@ -88,7 +89,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
       <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <CardHeader>
           <div className="flex items-center justify-between">

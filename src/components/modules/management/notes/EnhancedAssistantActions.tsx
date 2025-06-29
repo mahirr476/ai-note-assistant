@@ -215,12 +215,92 @@ export const EnhancedAssistantActions: React.FC<EnhancedAssistantActionsProps> =
     }
   };
 
-  const createTodoListFromAllTasks = () => {
+  const createTodoListFromAllTasks = async () => {
     if (taskActions.length === 0) return;
     
-    // Auto-generate a todo list name based on the note title
-    const defaultName = `${note.title.substring(0, 30)}${note.title.length > 30 ? '...' : ''} - Tasks`;
-    setShowTodoListModal(true);
+    try {
+      onShowToast('Creating todo list...', 'saving');
+      
+      const updatedData = { ...moduleData };
+      let createdCount = 0;
+      
+      // Auto-generate a smart todo list name based on the note content
+      const listName = generateTodoListName(note.title, note.content);
+      const listTag = `todo-list:${listName.toLowerCase().replace(/\s+/g, '-')}`;
+      
+      // Execute all task actions and add them to the todo list
+      for (const action of taskActions) {
+        if (!executedActions.has(action.id)) {
+          const result = await executeAction(action);
+          // Add the todo list tag to the created task
+          const taskWithTodoTag = {
+            ...result,
+            tags: [...(result.tags || []), listTag]
+          };
+          updatedData.tasks = [taskWithTodoTag as any, ...updatedData.tasks];
+          setExecutedActions(prev => new Set(prev).add(action.id));
+          createdCount++;
+        }
+      }
+      
+      // Mark all task actions as executed in the note
+      const updatedNote = {
+        ...note,
+        assistantActions: note.assistantActions?.map(a => 
+          taskActions.some(ta => ta.id === a.id) ? { ...a, executed: true } : a
+        )
+      };
+      const updatedNotes = moduleData.notes.map(n => 
+        n.id === note.id ? updatedNote : n
+      );
+      updatedData.notes = updatedNotes;
+      
+      setModuleData(updatedData);
+      onShowToast(`Todo list "${listName}" created with ${createdCount} tasks!`, 'saved');
+    } catch (error) {
+      onShowToast('Failed to create todo list', 'error');
+      console.error('Error creating todo list:', error);
+    }
+  };
+
+  const generateTodoListName = (title: string, content: string): string => {
+    // Extract key themes from the note
+    const titleWords = title.toLowerCase().split(/\s+/).filter(word => 
+      word.length > 3 && 
+      !['the', 'and', 'for', 'with', 'this', 'that', 'from'].includes(word)
+    );
+    
+    // Look for project or category indicators
+    const projectKeywords = ['project', 'website', 'app', 'system', 'platform', 'product'];
+    const meetingKeywords = ['meeting', 'call', 'conference', 'discussion'];
+    const businessKeywords = ['budget', 'financial', 'review', 'quarterly', 'business'];
+    
+    const lowerContent = content.toLowerCase();
+    
+    // Generate smart name based on content
+    if (projectKeywords.some(keyword => lowerContent.includes(keyword))) {
+      const projectWord = titleWords.find(word => 
+        projectKeywords.some(keyword => word.includes(keyword.slice(0, -1)))
+      ) || titleWords[0];
+      return `${projectWord?.charAt(0).toUpperCase()}${projectWord?.slice(1)} Project Tasks`;
+    }
+    
+    if (meetingKeywords.some(keyword => lowerContent.includes(keyword))) {
+      return `${titleWords[0]?.charAt(0).toUpperCase()}${titleWords[0]?.slice(1)} Meeting Action Items`;
+    }
+    
+    if (businessKeywords.some(keyword => lowerContent.includes(keyword))) {
+      return `${titleWords[0]?.charAt(0).toUpperCase()}${titleWords[0]?.slice(1)} Business Tasks`;
+    }
+    
+    // Default naming strategy
+    if (titleWords.length > 0) {
+      const mainWord = titleWords[0];
+      return `${mainWord.charAt(0).toUpperCase()}${mainWord.slice(1)} Tasks`;
+    }
+    
+    // Fallback
+    return `Note Tasks - ${new Date().toLocaleDateString()}`;
   };
 
   const handleTodoListSave = async (todoListData: any) => {
@@ -355,11 +435,11 @@ export const EnhancedAssistantActions: React.FC<EnhancedAssistantActionsProps> =
                     <Button
                       onClick={createTodoListFromAllTasks}
                       size="sm"
-                      variant="outline"
+                      variant="default"
                       className="gap-1 text-xs"
                     >
                       <ListTodo className="h-3 w-3" />
-                      Create Todo List
+                      Quick Todo List
                     </Button>
                   )}
                 </div>
@@ -370,7 +450,7 @@ export const EnhancedAssistantActions: React.FC<EnhancedAssistantActionsProps> =
                   <div key={action.id} className="flex items-start space-x-2 p-2 rounded border">
                     <Checkbox
                       checked={selectedActions.has(action.id)}
-                      onCheckedChange={(checked) => handleActionSelection(action.id, checked as boolean)}
+                      onCheckedChange={(checked: boolean) => handleActionSelection(action.id, checked as boolean)}
                       disabled={isActionExecuted(action)}
                     />
                     <div className="flex-1 min-w-0">
@@ -421,7 +501,7 @@ export const EnhancedAssistantActions: React.FC<EnhancedAssistantActionsProps> =
                   <div className="flex items-start space-x-2">
                     <Checkbox
                       checked={selectedActions.has(action.id)}
-                      onCheckedChange={(checked) => handleActionSelection(action.id, checked as boolean)}
+                      onCheckedChange={(checked: boolean) => handleActionSelection(action.id, checked as boolean)}
                       disabled={isActionExecuted(action)}
                     />
                     <div className="flex-1">
@@ -487,7 +567,7 @@ export const EnhancedAssistantActions: React.FC<EnhancedAssistantActionsProps> =
         )}
       </div>
 
-      {/* Todo List Modal */}
+      {/* Todo List Modal - Keep for manual todo list creation if needed */}
       {showTodoListModal && (
         <CreateTodoListModal
           tasks={moduleData.tasks}

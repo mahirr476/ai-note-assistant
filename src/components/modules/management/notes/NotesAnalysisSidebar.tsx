@@ -1,12 +1,10 @@
-// src/components/modules/notes/NotesAnalysisSidebar.tsx
+// src/components/modules/notes/NotesAnalysisSidebar.tsx (Fixed Version)
 import React from 'react';
-import { Brain, Tag, Users, Calendar, MapPin, Clock, Plus } from 'lucide-react';
-import { Card, CardContent } from '../../../ui/card';
+import { Brain, Tag, Users, Calendar, MapPin, Clock } from 'lucide-react';
 import { Badge } from '../../../ui/badge';
-import { Button } from '../../../ui/button';
-import { Note, ModuleData, AssistantAction } from '../../../../types/modules';
-import { assistantEngine } from '../../../../lib/assistant-engine';
+import { Note, ModuleData } from '../../../../types/modules';
 import { formatDate } from '../../../../utils/noteUtils';
+import { EnhancedAssistantActions } from './EnhancedAssistantActions';
 
 interface NotesAnalysisSidebarProps {
   note: Note | null;
@@ -22,51 +20,6 @@ export const NotesAnalysisSidebar: React.FC<NotesAnalysisSidebarProps> = ({
   onShowToast
 }) => {
   if (!note) return null;
-
-  const executeAssistantAction = async (action: AssistantAction) => {
-    try {
-      const result = assistantEngine.executeAction(action);
-      
-      // Add to appropriate module
-      const updatedData = { ...moduleData };
-      
-      switch (action.type) {
-        case 'create-task':
-          updatedData.tasks = [result as any, ...updatedData.tasks];
-          onShowToast('Task created successfully!', 'saved');
-          break;
-        case 'create-event':
-          updatedData.calendar = [result as any, ...updatedData.calendar];
-          onShowToast('Event added to calendar!', 'saved');
-          break;
-        case 'create-contact':
-          updatedData.contacts = [result as any, ...updatedData.contacts];
-          onShowToast('Contact saved!', 'saved');
-          break;
-        case 'create-project':
-          updatedData.projects = [result as any, ...updatedData.projects];
-          onShowToast('Project created!', 'saved');
-          break;
-      }
-      
-      // Mark action as executed in the note
-      const updatedNote = {
-        ...note,
-        assistantActions: note.assistantActions?.map(a => 
-          a.id === action.id ? { ...a, executed: true } : a
-        )
-      };
-      const updatedNotes = moduleData.notes.map(n => 
-        n.id === note.id ? updatedNote : n
-      );
-      updatedData.notes = updatedNotes;
-      
-      setModuleData(updatedData);
-    } catch (error) {
-      onShowToast('Failed to execute action', 'error');
-      console.error('Error executing action:', error);
-    }
-  };
 
   return (
     <div className="w-80 border-l bg-card p-4 overflow-y-auto flex-shrink-0">
@@ -170,42 +123,14 @@ export const NotesAnalysisSidebar: React.FC<NotesAnalysisSidebarProps> = ({
           </div>
         )}
 
-        {/* Assistant Actions */}
+        {/* Enhanced Assistant Actions */}
         {note.assistantActions && note.assistantActions.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Brain className="h-4 w-4 text-primary" />
-              <h3 className="font-semibold text-sm">Suggested Actions</h3>
-            </div>
-            
-            <div className="space-y-2">
-              {note.assistantActions.map((action) => (
-                <Card key={action.id} className="p-3">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{action.title}</span>
-                      {action.executed && (
-                        <Badge variant="secondary" className="text-xs">
-                          ✓ Done
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">{action.description}</p>
-                    {!action.executed && (
-                      <Button
-                        onClick={() => executeAssistantAction(action)}
-                        size="sm"
-                        className="w-full gap-1"
-                      >
-                        <Plus className="h-3 w-3" />
-                        Execute
-                      </Button>
-                    )}
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
+          <EnhancedAssistantActions
+            note={note}
+            moduleData={moduleData}
+            setModuleData={setModuleData}
+            onShowToast={onShowToast}
+          />
         )}
 
         {/* Metadata */}
