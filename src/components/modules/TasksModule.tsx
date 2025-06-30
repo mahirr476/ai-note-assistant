@@ -1,14 +1,14 @@
-// src/components/modules/TasksModule.tsx (Fixed)
+// src/components/modules/TasksModule.tsx (Fixed Layout)
 import React, { useState, useMemo } from 'react';
 import { ModuleData, Task } from '../../types/modules';
 import { TasksSidebar } from './management/tasks/TasksSidebar';
 import { TasksMainView } from './management/tasks/TasksMainView';
 import { TodoListsView } from './management/tasks/TodoListsView';
+import { CreateTodoListView } from './management/tasks/CreateTodoListView'; // New component
 import { TaskModal } from './management/tasks/TaskModal';
-import { CreateTodoListModal } from './management/tasks/CreateTodoListModal';
 import { TasksHeader } from './management/tasks/TasksHeader';
 
-export type TaskViewMode = 'list' | 'grid' | 'kanban' | 'todo-lists';
+export type TaskViewMode = 'list' | 'grid' | 'kanban' | 'todo-lists' | 'create-todo-list';
 export type TaskSortBy = 'priority' | 'dueDate' | 'category' | 'created' | 'updated';
 export type TaskFilterBy = 'all' | 'pending' | 'completed' | 'overdue' | 'today' | 'thisWeek';
 
@@ -30,7 +30,6 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
 
   // Modal state
   const [showTaskModal, setShowTaskModal] = useState(false);
-  const [showTodoListModal, setShowTodoListModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   // Filtering and sorting logic
@@ -158,6 +157,19 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
     });
   };
 
+  // FIXED: Todo list delete function - only remove tags, don't delete tasks
+  const deleteTodoList = (listName: string) => {
+    const todoListTag = `todo-list:${listName.toLowerCase().replace(/\s+/g, '-')}`;
+    
+    const updatedTasks = (moduleData.tasks || []).map(task => ({
+      ...task,
+      tags: task.tags.filter(tag => tag !== todoListTag),
+      updatedAt: new Date().toISOString()
+    }));
+    
+    setModuleData({ ...moduleData, tasks: updatedTasks });
+  };
+
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
     setShowTaskModal(true);
@@ -194,16 +206,17 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
   };
 
   const handleCreateTodoList = () => {
-    setShowTodoListModal(true);
+    setViewMode('create-todo-list');
   };
 
   const handleTodoListSave = (todoListData: any) => {
     const updatedData = { ...moduleData };
     
-    // Ensure tasks array exists
     if (!updatedData.tasks) {
       updatedData.tasks = [];
     }
+    
+    const listTag = `todo-list:${todoListData.name.toLowerCase().replace(/\s+/g, '-')}`;
     
     // Create new tasks
     for (const newTask of todoListData.newTasks || []) {
@@ -218,7 +231,7 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
         updatedAt: new Date().toISOString(),
         sourceNoteId: undefined,
         category: todoListData.category || 'Todo List',
-        tags: [`todo-list:${todoListData.name.toLowerCase().replace(/\s+/g, '-')}`]
+        tags: [listTag]
       };
       updatedData.tasks = [task, ...updatedData.tasks];
     }
@@ -229,7 +242,7 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
         if (todoListData.selectedTasks.includes(task.id)) {
           return {
             ...task,
-            tags: [...task.tags, `todo-list:${todoListData.name.toLowerCase().replace(/\s+/g, '-')}`],
+            tags: [...task.tags, listTag],
             updatedAt: new Date().toISOString()
           };
         }
@@ -239,7 +252,11 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
     }
 
     setModuleData(updatedData);
-    setShowTodoListModal(false);
+    setViewMode('todo-lists');
+  };
+
+  const handleCancelCreateTodoList = () => {
+    setViewMode('todo-lists');
   };
 
   // Get statistics
@@ -258,10 +275,21 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
   }, [moduleData.tasks, todoListsCount]);
 
   const renderMainContent = () => {
+    // Create Todo List View
+    if (viewMode === 'create-todo-list') {
+      return (
+        <CreateTodoListView
+          tasks={moduleData.tasks || []}
+          onSave={handleTodoListSave}
+          onCancel={handleCancelCreateTodoList}
+        />
+      );
+    }
+
+    // Todo Lists View (WITH HEADER)
     if (viewMode === 'todo-lists') {
       return (
-        <div className="flex-1 flex flex-col h-full overflow-hidden">
-          {/* Header for Todo Lists */}
+        <div className="flex flex-col h-full">
           <TasksHeader
             taskStats={taskStats}
             viewMode={viewMode}
@@ -269,13 +297,13 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
             selectedCount={0}
           />
           
-          {/* Todo Lists Content - Full Height with overflow hidden */}
           <div className="flex-1 min-h-0 overflow-hidden">
             <TodoListsView
               tasks={moduleData.tasks || []}
               onTaskClick={handleEditTask}
               onTaskComplete={toggleTaskComplete}
               onTaskDelete={deleteTask}
+              onTodoListDelete={deleteTodoList}
               onCreateTodoList={handleCreateTodoList}
             />
           </div>
@@ -283,49 +311,51 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
       );
     }
 
+    // Regular task views (WITH SIDEBAR)
     return (
-      <div className="flex-1 h-full overflow-hidden">
-        <TasksMainView
-          tasks={filteredAndSortedTasks}
+      <div className="flex h-full w-full">
+        {/* Sidebar only for regular task views */}
+        <TasksSidebar
+          tasks={moduleData.tasks || []}
+          filteredTasks={filteredAndSortedTasks}
+          taskStats={taskStats}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          filterBy={filterBy}
+          setFilterBy={setFilterBy}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
+          selectedTasks={selectedTasks}
           viewMode={viewMode}
           setViewMode={setViewMode}
-          selectedTasks={selectedTasks}
-          setSelectedTasks={setSelectedTasks}
-          onTaskClick={handleEditTask}
-          onTaskComplete={toggleTaskComplete}
-          onTaskDelete={deleteTask}
-          taskStats={taskStats}
+          onBulkDelete={handleBulkDelete}
+          onBulkComplete={handleBulkComplete}
+          onCreateTask={() => setShowTaskModal(true)}
+          onCreateTodoList={handleCreateTodoList}
         />
+
+        {/* Main task content - FIXED: Added proper flex constraints */}
+        <div className="flex-1 h-full min-h-0 min-w-0 overflow-hidden">
+          <TasksMainView
+            tasks={filteredAndSortedTasks}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            selectedTasks={selectedTasks}
+            setSelectedTasks={setSelectedTasks}
+            onTaskClick={handleEditTask}
+            onTaskComplete={toggleTaskComplete}
+            onTaskDelete={deleteTask}
+            taskStats={taskStats}
+            onCreateTask={() => setShowTaskModal(true)}
+          />
+        </div>
       </div>
     );
   };
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
-      {/* Sidebar */}
-      <TasksSidebar
-        tasks={moduleData.tasks || []}
-        filteredTasks={filteredAndSortedTasks}
-        taskStats={taskStats}
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        filterBy={filterBy}
-        setFilterBy={setFilterBy}
-        sortBy={sortBy}
-        setSortBy={setSortBy}
-        selectedTasks={selectedTasks}
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-        onBulkDelete={handleBulkDelete}
-        onBulkComplete={handleBulkComplete}
-        onCreateTask={() => setShowTaskModal(true)}
-        onCreateTodoList={handleCreateTodoList}
-      />
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {renderMainContent()}
-      </div>
+      {renderMainContent()}
 
       {/* Task Modal */}
       {showTaskModal && (
@@ -333,15 +363,6 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
           task={editingTask}
           onSave={handleTaskModalSave}
           onClose={handleTaskModalClose}
-        />
-      )}
-
-      {/* Todo List Modal */}
-      {showTodoListModal && (
-        <CreateTodoListModal
-          tasks={moduleData.tasks || []}
-          onClose={() => setShowTodoListModal(false)}
-          onSave={handleTodoListSave}
         />
       )}
     </div>

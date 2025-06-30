@@ -124,21 +124,7 @@ export const TasksHeader: React.FC<TasksHeaderProps> = ({
         </div>
       )}
 
-      {/* Todo Lists Header - Show when in todo-lists view */}
-      {viewMode === 'todo-lists' && (
-        <div className="text-center py-4">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <ListTodo className="h-5 w-5 text-purple-600" />
-            <h3 className="text-lg font-semibold">Todo Lists</h3>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {taskStats.todoLists > 0 
-              ? `${taskStats.todoLists} organized task collections`
-              : 'Create todo lists from your notes to get started'
-            }
-          </p>
-        </div>
-      )}
+      
     </div>
   );
 };
