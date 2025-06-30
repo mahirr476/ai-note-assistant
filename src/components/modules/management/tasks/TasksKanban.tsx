@@ -1,4 +1,4 @@
-// src/components/modules/tasks/TasksKanban.tsx
+// src/components/modules/tasks/TasksKanban.tsx (Scroll Fixed)
 import React from 'react';
 import { CheckCircle2, Clock, Calendar, Flag, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../../../ui/card';
@@ -54,12 +54,12 @@ export const TasksKanban: React.FC<TasksKanbanProps> = ({
         <div className="space-y-2">
           {/* Header */}
           <div className="flex items-start justify-between">
-            <h3 className={`font-medium text-sm leading-tight ${
+            <h3 className={`font-medium text-sm leading-tight flex-1 pr-2 ${
               task.completed ? 'line-through text-muted-foreground' : ''
             }`}>
               {task.title}
             </h3>
-            <div className="flex items-center space-x-1">
+            <div className="flex items-center space-x-1 flex-shrink-0">
               <Button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -148,36 +148,39 @@ export const TasksKanban: React.FC<TasksKanbanProps> = ({
   );
 
   return (
-    <div className="p-4 h-full overflow-hidden">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 h-full">
+    <div className="flex flex-col h-full w-full">
+      {/* Use flexbox instead of grid for better height control */}
+      <div className="flex-1 flex p-4 gap-4 min-h-0">
         {columnConfig.map((column) => (
-          <div key={column.key} className="flex flex-col h-full min-h-0">
-            {/* Column Header */}
+          <div key={column.key} className="flex-1 flex flex-col min-w-0 max-w-sm">
+            {/* Column Header - Fixed Height */}
             <div className={`p-3 rounded-t-lg border-b ${column.color} flex-shrink-0`}>
               <div className="flex items-center justify-between">
-                <h3 className="font-medium text-sm">{column.title}</h3>
-                <Badge variant="secondary" className="text-xs">
+                <h3 className="font-medium text-sm truncate">{column.title}</h3>
+                <Badge variant="secondary" className="text-xs ml-2">
                   {column.count}
                 </Badge>
               </div>
             </div>
 
-            {/* Column Content */}
-            <div className={`flex-1 p-3 border-x border-b rounded-b-lg ${column.color} min-h-0`}>
-              <ScrollArea className="h-full">
-                <div className="pr-2">
-                  {taskColumns[column.key as keyof typeof taskColumns].length === 0 ? (
-                    <div className="text-center text-muted-foreground py-8">
-                      <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No tasks</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {taskColumns[column.key as keyof typeof taskColumns].map(renderTaskCard)}
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
+            {/* Column Content - Scrollable */}
+            <div className={`flex-1 border-x border-b rounded-b-lg ${column.color} min-h-0 relative`}>
+              <div className="absolute inset-0">
+                <ScrollArea className="h-full w-full">
+                  <div className="p-3">
+                    {taskColumns[column.key as keyof typeof taskColumns].length === 0 ? (
+                      <div className="text-center text-muted-foreground py-8">
+                        <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No tasks</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 pb-4">
+                        {taskColumns[column.key as keyof typeof taskColumns].map(renderTaskCard)}
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
             </div>
           </div>
         ))}

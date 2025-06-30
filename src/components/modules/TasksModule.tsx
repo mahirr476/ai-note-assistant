@@ -17,8 +17,6 @@ interface TasksModuleProps {
   setModuleData: (data: ModuleData) => void;
 }
 
-
-
 export const TasksModule: React.FC<TasksModuleProps> = ({
   moduleData,
   setModuleData
@@ -37,7 +35,7 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
 
   // Filtering and sorting logic
   const filteredAndSortedTasks = useMemo(() => {
-    let filtered = moduleData.tasks || []; // Added fallback for undefined tasks
+    let filtered = moduleData.tasks || [];
 
     // Apply search filter
     if (searchTerm) {
@@ -106,7 +104,7 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
   // Todo lists count
   const todoListsCount = useMemo(() => {
     const todoListTags = new Set<string>();
-    (moduleData.tasks || []).forEach(task => { // Added fallback
+    (moduleData.tasks || []).forEach(task => {
       task.tags.forEach(tag => {
         if (tag.startsWith('todo-list:')) {
           todoListTags.add(tag);
@@ -134,13 +132,13 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
 
     const updatedData = {
       ...moduleData,
-      tasks: [newTask, ...(moduleData.tasks || [])] // Added fallback
+      tasks: [newTask, ...(moduleData.tasks || [])]
     };
     setModuleData(updatedData);
   };
 
   const updateTask = (taskId: string, updates: Partial<Task>) => {
-    const updatedTasks = (moduleData.tasks || []).map(task => // Added fallback
+    const updatedTasks = (moduleData.tasks || []).map(task =>
       task.id === taskId
         ? { ...task, ...updates, updatedAt: new Date().toISOString() }
         : task
@@ -149,12 +147,12 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
   };
 
   const deleteTask = (taskId: string) => {
-    const updatedTasks = (moduleData.tasks || []).filter(task => task.id !== taskId); // Added fallback
+    const updatedTasks = (moduleData.tasks || []).filter(task => task.id !== taskId);
     setModuleData({ ...moduleData, tasks: updatedTasks });
   };
 
   const toggleTaskComplete = (taskId: string) => {
-    const task = (moduleData.tasks || []).find(t => t.id === taskId); // Added fallback
+    const task = (moduleData.tasks || []).find(t => t.id === taskId);
     updateTask(taskId, { 
       completed: !task?.completed 
     });
@@ -180,13 +178,13 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
   };
 
   const handleBulkDelete = () => {
-    const updatedTasks = (moduleData.tasks || []).filter(task => !selectedTasks.has(task.id)); // Added fallback
+    const updatedTasks = (moduleData.tasks || []).filter(task => !selectedTasks.has(task.id));
     setModuleData({ ...moduleData, tasks: updatedTasks });
     setSelectedTasks(new Set());
   };
 
   const handleBulkComplete = () => {
-    const updatedTasks = (moduleData.tasks || []).map(task => // Added fallback
+    const updatedTasks = (moduleData.tasks || []).map(task =>
       selectedTasks.has(task.id)
         ? { ...task, completed: true, updatedAt: new Date().toISOString() }
         : task
@@ -246,7 +244,7 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
 
   // Get statistics
   const taskStats = useMemo(() => {
-    const tasks = moduleData.tasks || []; // Added fallback
+    const tasks = moduleData.tasks || [];
     const total = tasks.length;
     const completed = tasks.filter(t => t.completed).length;
     const pending = total - completed;
@@ -262,7 +260,7 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
   const renderMainContent = () => {
     if (viewMode === 'todo-lists') {
       return (
-        <div className="flex-1 flex flex-col h-full w-full">
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
           {/* Header for Todo Lists */}
           <TasksHeader
             taskStats={taskStats}
@@ -271,10 +269,10 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
             selectedCount={0}
           />
           
-          {/* Todo Lists Content - Full Width */}
-          <div className="flex-1 overflow-hidden w-full">
+          {/* Todo Lists Content - Full Height with overflow hidden */}
+          <div className="flex-1 min-h-0 overflow-hidden">
             <TodoListsView
-              tasks={moduleData.tasks || []} // Added fallback
+              tasks={moduleData.tasks || []}
               onTaskClick={handleEditTask}
               onTaskComplete={toggleTaskComplete}
               onTaskDelete={deleteTask}
@@ -286,7 +284,7 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
     }
 
     return (
-      <div className="flex-1 w-full">
+      <div className="flex-1 h-full overflow-hidden">
         <TasksMainView
           tasks={filteredAndSortedTasks}
           viewMode={viewMode}
@@ -303,10 +301,10 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
   };
 
   return (
-    <div className="flex h-screen w-full">
+    <div className="flex h-screen w-full overflow-hidden">
       {/* Sidebar */}
       <TasksSidebar
-        tasks={moduleData.tasks || []} // Added fallback
+        tasks={moduleData.tasks || []}
         filteredTasks={filteredAndSortedTasks}
         taskStats={taskStats}
         searchTerm={searchTerm}
@@ -325,7 +323,7 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col h-full w-full overflow-hidden">
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
         {renderMainContent()}
       </div>
 
@@ -341,7 +339,7 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
       {/* Todo List Modal */}
       {showTodoListModal && (
         <CreateTodoListModal
-          tasks={moduleData.tasks || []} // Added fallback
+          tasks={moduleData.tasks || []}
           onClose={() => setShowTodoListModal(false)}
           onSave={handleTodoListSave}
         />
@@ -350,5 +348,4 @@ export const TasksModule: React.FC<TasksModuleProps> = ({
   );
 };
 
-// Export the component (this was missing!)
 export default TasksModule;

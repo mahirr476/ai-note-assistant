@@ -1,11 +1,10 @@
-// src/components/modules/tasks/TodoListsView.tsx (Grid Layout with Modals)
+// src/components/modules/tasks/TodoListsView.tsx (Navigation-based View - Fixed)
 import React, { useMemo, useState } from 'react';
-import { ListTodo, Calendar, Flag, CheckSquare, Circle, Trash2, MoreHorizontal, Edit3, Plus, X, Clock } from 'lucide-react';
+import { ListTodo, Calendar, Flag, CheckSquare, Circle, Trash2, MoreHorizontal, Edit3, Plus, ArrowLeft, Clock } from 'lucide-react';
 import { Button } from '../../../ui/button';
 import { ScrollArea } from '../../../ui/scroll-area';
 import { Progress } from '../../../ui/progress';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../../ui/dropdown-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../ui/dialog';
 import { Task } from '../../../../types/modules';
 import { formatDate, getPriorityColor } from '../../../../utils/noteUtils';
 
@@ -83,8 +82,13 @@ export const TodoListsView: React.FC<TodoListsViewProps> = ({
     listTasks.forEach(task => {
       onTaskDelete(task.id);
     });
+    // If we're currently viewing this list, go back to grid
+    if (selectedList === listName) {
+      setSelectedList(null);
+    }
   };
 
+  // If no todo lists exist
   if (todoListNames.length === 0) {
     return (
       <div className="h-full w-full flex items-center justify-center p-8">
@@ -107,6 +111,165 @@ export const TodoListsView: React.FC<TodoListsViewProps> = ({
     );
   }
 
+  // If a specific list is selected, show detailed view
+  if (selectedList && todoLists[selectedList]) {
+    const listTasks = todoLists[selectedList];
+    const stats = getListStats(listTasks);
+    const progressPercentage = stats.total > 0 ? (stats.completed / stats.total) * 100 : 0;
+
+    return (
+      <div className="h-full w-full flex flex-col">
+        {/* Header for individual list view */}
+        <div className="p-6 border-b border-border">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                onClick={() => setSelectedList(null)}
+                variant="ghost"
+                size="icon"
+                className="rounded-full"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl">
+                  <ListTodo className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold capitalize">{selectedList}</h1>
+                  <p className="text-muted-foreground">
+                    {stats.completed}/{stats.total} tasks completed • {Math.round(progressPercentage)}% done
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button onClick={onCreateTodoList} variant="outline" className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add Task
+              </Button>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem 
+                    className="text-destructive"
+                    onClick={() => handleDeleteList(selectedList)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete List
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+          
+          {/* Progress bar */}
+          <div className="mt-4">
+            <Progress value={progressPercentage} className="h-2" />
+          </div>
+        </div>
+
+        {/* Tasks list */}
+        <ScrollArea className="flex-1">
+          <div className="p-6">
+            {listTasks.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <ListTodo className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-medium mb-2">No tasks yet</h3>
+                <p className="text-sm">Add your first task to get started!</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {listTasks.map((task, index) => (
+                  <div
+                    key={task.id}
+                    className="group p-4 rounded-xl border bg-background hover:bg-accent/30 transition-all duration-200"
+                    style={{ 
+                      animationDelay: `${index * 50}ms`,
+                      animation: 'fadeInUp 0.3s ease-out forwards'
+                    }}
+                  >
+                    <div className="flex items-start gap-4">
+                      <Button
+                        onClick={() => onTaskComplete(task.id)}
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 p-0 mt-1 flex-shrink-0 rounded-full"
+                      >
+                        {task.completed ? (
+                          <CheckSquare className="h-5 w-5 text-green-500" />
+                        ) : (
+                          <Circle className="h-5 w-5 text-muted-foreground hover:text-green-500" />
+                        )}
+                      </Button>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className={`font-medium text-base flex-1 ${
+                            task.completed ? 'line-through text-muted-foreground' : 'text-foreground'
+                          }`}>
+                            {task.title}
+                          </h4>
+                          
+                          <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                            <div className={`px-2 py-1 text-xs rounded-full ${getPriorityBadgeClass(task.priority)}`}>
+                              <Flag className="h-3 w-3 mr-1 inline" />
+                              {task.priority}
+                            </div>
+                            
+                            {task.dueDate && (
+                              <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs rounded-full">
+                                <Calendar className="h-3 w-3" />
+                                {formatDate(task.dueDate)}
+                              </div>
+                            )}
+                            
+                            <Button
+                              onClick={() => onTaskClick(task)}
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Edit3 className="h-3 w-3 mr-1" />
+                              Edit
+                            </Button>
+                            
+                            <Button
+                              onClick={() => onTaskDelete(task.id)}
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 hover:text-red-600"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        {task.description && (
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            {task.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+      </div>
+    );
+  }
+
+  // Default grid view
   return (
     <div className="h-full w-full flex flex-col">
       <ScrollArea className="flex-1">
@@ -254,108 +417,6 @@ export const TodoListsView: React.FC<TodoListsViewProps> = ({
           </div>
         </div>
       </ScrollArea>
-
-      {/* Todo List Modal */}
-      {selectedList && (
-        <Dialog open={!!selectedList} onOpenChange={() => setSelectedList(null)}>
-          <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
-            <DialogHeader>
-              <DialogTitle className="capitalize">{selectedList}</DialogTitle>
-            </DialogHeader>
-            
-            <ScrollArea className="flex-1 mt-4">
-              <div className="space-y-3">
-                {todoLists[selectedList]?.map((task) => (
-                  <div
-                    key={task.id}
-                    className="group p-3 rounded-lg border bg-background hover:bg-accent/30 transition-colors"
-                  >
-                    <div className="flex items-start gap-3">
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onTaskComplete(task.id);
-                        }}
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5 p-0 mt-0.5 flex-shrink-0"
-                      >
-                        {task.completed ? (
-                          <CheckSquare className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <Circle className="h-4 w-4 text-muted-foreground hover:text-green-500" />
-                        )}
-                      </Button>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <h4 className={`font-medium text-sm flex-1 truncate pr-2 ${
-                            task.completed ? 'line-through text-muted-foreground' : ''
-                          }`}>
-                            {task.title}
-                          </h4>
-                          
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <div className={`px-2 py-1 text-xs rounded-full ${getPriorityBadgeClass(task.priority)}`}>
-                              <Flag className="h-3 w-3 mr-1 inline" />
-                              {task.priority}
-                            </div>
-                            
-                            {task.dueDate && (
-                              <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs rounded-full">
-                                <Calendar className="h-3 w-3" />
-                                {formatDate(task.dueDate)}
-                              </div>
-                            )}
-                            
-                            <Button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onTaskClick(task);
-                              }}
-                              variant="outline"
-                              size="sm"
-                              className="h-7 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <Edit3 className="h-3 w-3 mr-1" />
-                              Edit
-                            </Button>
-                            
-                            <Button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onTaskDelete(task.id);
-                              }}
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <Trash2 className="h-3 w-3 text-destructive" />
-                            </Button>
-                          </div>
-                        </div>
-                        
-                        {task.description && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                            {task.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                
-                {todoLists[selectedList]?.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <ListTodo className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>No tasks in this list yet</p>
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-          </DialogContent>
-        </Dialog>
-      )}
       
       <style jsx>{`
         @keyframes fadeInUp {

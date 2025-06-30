@@ -1,6 +1,7 @@
-// src/App.tsx
+// 7. UPDATE: src/App.tsx or wherever you initialize your app
+import React from 'react';
 import { ThemeProvider } from "./components/theme-provider"
-import ModularInterface from './components/ModularInterface'  // 👈 Changed this line
+import ModularInterface from './components/ModularInterface';
 
 function App() {
   return (
@@ -10,9 +11,9 @@ function App() {
       enableSystem
       disableTransitionOnChange
     >
-      <ModularInterface />  
+      <ModularInterface />
     </ThemeProvider>
-  )
+  );
 }
 
-export default App
+export default App;

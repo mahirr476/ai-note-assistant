@@ -1,10 +1,11 @@
-// src/components/layout/ModuleNavigation.tsx
+// 6. UPDATE: src/components/layout/ModuleNavigation.tsx
 import React from 'react';
 import { FileText, CheckSquare, Calendar, User, Briefcase, Home } from 'lucide-react';
 import { ModuleType, ModuleData } from '../../types/modules';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
 import { ThemeToggle } from '../theme-toggle';
+
 
 interface ModuleNavigationProps {
   activeModule: ModuleType;
@@ -58,7 +59,9 @@ export const ModuleNavigation: React.FC<ModuleNavigationProps> = ({
       
       <div className="flex-1" />
       
+      {/* Choose one: ThemeToggle (compact) or ThemePicker (full modal) */}
       <ThemeToggle />
+      {/* <ThemePicker /> */}
     </div>
   );
 };
