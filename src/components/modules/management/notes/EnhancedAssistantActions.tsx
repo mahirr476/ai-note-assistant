@@ -1,4 +1,4 @@
-// src/components/modules/notes/EnhancedAssistantActions.tsx (Final Fixed Version)
+// src/components/modules/notes/EnhancedAssistantActions.tsx (Fixed Import)
 import React, { useState } from 'react';
 import { Brain, Plus, ListTodo, CheckSquare, Calendar, User, Briefcase } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../ui/card';
@@ -6,7 +6,6 @@ import { Button } from '../../../ui/button';
 import { Badge } from '../../../ui/badge';
 import { Checkbox } from '../../../ui/checkbox';
 import { Note, ModuleData, AssistantAction } from '../../../../types/modules';
-import { CreateTodoListModal } from '../tasks/CreateTodoListModal';
 
 interface EnhancedAssistantActionsProps {
   note: Note;
@@ -22,7 +21,6 @@ export const EnhancedAssistantActions: React.FC<EnhancedAssistantActionsProps> =
   onShowToast
 }) => {
   const [selectedActions, setSelectedActions] = useState<Set<string>>(new Set());
-  const [showTodoListModal, setShowTodoListModal] = useState(false);
   const [executingActions, setExecutingActions] = useState<Set<string>>(new Set());
   const [executedActions, setExecutedActions] = useState<Set<string>>(new Set());
 
@@ -303,83 +301,6 @@ export const EnhancedAssistantActions: React.FC<EnhancedAssistantActionsProps> =
     return `Note Tasks - ${new Date().toLocaleDateString()}`;
   };
 
-  const handleTodoListSave = async (todoListData: any) => {
-    try {
-      const updatedData = { ...moduleData };
-      let createdCount = 0;
-      
-      // Handle selected task actions from the note
-      if (todoListData.selectedActions && todoListData.selectedActions.length > 0) {
-        const selectedTaskActions = taskActions.filter(action => 
-          todoListData.selectedActions.includes(action.id)
-        );
-
-        // Execute selected task actions
-        for (const action of selectedTaskActions) {
-          if (!executedActions.has(action.id)) {
-            const result = await executeAction(action);
-            updatedData.tasks = [result as any, ...updatedData.tasks];
-            setExecutedActions(prev => new Set(prev).add(action.id));
-            createdCount++;
-          }
-        }
-
-        // Mark executed actions as completed in the note
-        const updatedNote = {
-          ...note,
-          assistantActions: note.assistantActions?.map(a => 
-            selectedTaskActions.some(sa => sa.id === a.id) ? { ...a, executed: true } : a
-          )
-        };
-        const updatedNotes = moduleData.notes.map(n => 
-          n.id === note.id ? updatedNote : n
-        );
-        updatedData.notes = updatedNotes;
-      }
-
-      // Create new tasks from the modal
-      for (const newTask of todoListData.newTasks || []) {
-        const task = {
-          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-          title: newTask.title,
-          description: newTask.description || `From todo list: ${todoListData.name}`,
-          completed: false,
-          priority: newTask.priority,
-          dueDate: newTask.dueDate,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          sourceNoteId: note.id,
-          category: todoListData.category || 'Todo List',
-          tags: [`todo-list:${todoListData.name.toLowerCase().replace(/\s+/g, '-')}`]
-        };
-        updatedData.tasks = [task, ...updatedData.tasks];
-        createdCount++;
-      }
-
-      // Handle selected existing tasks (if any)
-      if (todoListData.selectedTasks && todoListData.selectedTasks.length > 0) {
-        const updatedTasks = updatedData.tasks.map(task => {
-          if (todoListData.selectedTasks.includes(task.id)) {
-            return {
-              ...task,
-              tags: [...task.tags, `todo-list:${todoListData.name.toLowerCase().replace(/\s+/g, '-')}`],
-              updatedAt: new Date().toISOString()
-            };
-          }
-          return task;
-        });
-        updatedData.tasks = updatedTasks;
-      }
-
-      setModuleData(updatedData);
-      setShowTodoListModal(false);
-      onShowToast(`Todo list "${todoListData.name}" created with ${createdCount} tasks!`, 'saved');
-    } catch (error) {
-      onShowToast('Failed to create todo list', 'error');
-      console.error('Error creating todo list:', error);
-    }
-  };
-
   const getActionIcon = (type: string) => {
     switch (type) {
       case 'create-task': return CheckSquare;
@@ -566,17 +487,6 @@ export const EnhancedAssistantActions: React.FC<EnhancedAssistantActionsProps> =
           </div>
         )}
       </div>
-
-      {/* Todo List Modal - Keep for manual todo list creation if needed */}
-      {showTodoListModal && (
-        <CreateTodoListModal
-          tasks={moduleData.tasks}
-          availableActions={taskActions}
-          defaultName={`${note.title.substring(0, 30)}${note.title.length > 30 ? '...' : ''} - Tasks`}
-          onClose={() => setShowTodoListModal(false)}
-          onSave={handleTodoListSave}
-        />
-      )}
     </div>
   );
 };
