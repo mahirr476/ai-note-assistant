@@ -1,5 +1,4 @@
-
-// src/components/modules/tasks/TaskModal.tsx
+// src/components/modules/tasks/TaskModal.tsx (Fixed)
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Flag, Tag, FileText, Clock, Save } from 'lucide-react';
 import { Button } from '../../../ui/button';
@@ -44,6 +43,17 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         tags: task.tags,
         completed: task.completed
       });
+    } else {
+      // Reset form for new task
+      setFormData({
+        title: '',
+        description: '',
+        priority: 'medium',
+        dueDate: '',
+        category: '',
+        tags: [],
+        completed: false
+      });
     }
   }, [task]);
 
@@ -61,6 +71,14 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     };
 
     onSave(taskData);
+  };
+
+  const handlePriorityChange = (value: string) => {
+    console.log('Priority changed to:', value); // Debug log
+    setFormData(prev => ({ 
+      ...prev, 
+      priority: value as Task['priority'] 
+    }));
   };
 
   const addTag = () => {
@@ -88,9 +106,25 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     }
   };
 
+  // Helper function to get priority display info
+  const getPriorityInfo = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return { color: 'bg-red-500', label: 'High Priority' };
+      case 'medium':
+        return { color: 'bg-orange-500', label: 'Medium Priority' };
+      case 'low':
+        return { color: 'bg-blue-500', label: 'Low Priority' };
+      default:
+        return { color: 'bg-gray-500', label: 'Medium Priority' };
+    }
+  };
+
+  const currentPriorityInfo = getPriorityInfo(formData.priority);
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto relative z-[70]">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
@@ -112,6 +146,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               value={formData.title}
               onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
               onKeyDown={handleKeyPress}
+              autoFocus
             />
           </div>
 
@@ -134,13 +169,26 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 <Flag className="h-4 w-4" />
                 Priority
               </label>
-              <Select value={formData.priority} onValueChange={(value: Task['priority']) => 
-                setFormData(prev => ({ ...prev, priority: value }))
-              }>
-                <SelectTrigger>
-                  <SelectValue />
+              
+              <Select 
+                value={formData.priority} 
+                onValueChange={handlePriorityChange}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-2 h-2 ${currentPriorityInfo.color} rounded-full`}></div>
+                      <span>{currentPriorityInfo.label}</span>
+                    </div>
+                  </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent 
+                  position="popper"
+                  side="bottom"
+                  align="start"
+                  className="z-[80]"
+                  container={document.body}
+                >
                   <SelectItem value="high">
                     <div className="flex items-center space-x-2">
                       <div className="w-2 h-2 bg-red-500 rounded-full"></div>
@@ -229,6 +277,22 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               )}
             </div>
           </div>
+
+          {/* Completion Status (only show when editing) */}
+          {task && (
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="completed"
+                checked={formData.completed}
+                onChange={(e) => setFormData(prev => ({ ...prev, completed: e.target.checked }))}
+                className="rounded border-gray-300"
+              />
+              <label htmlFor="completed" className="text-sm font-medium">
+                Mark as completed
+              </label>
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex justify-end space-x-2 pt-4">
