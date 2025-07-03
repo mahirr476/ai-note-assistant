@@ -1,5 +1,5 @@
-// src/components/modules/notes/EnhancedAssistantActions.tsx (Fixed Import)
-import React, { useState } from 'react';
+// src/components/modules/notes/EnhancedAssistantActions.tsx (Fixed)
+import React, { useState, useEffect } from 'react';
 import { Brain, Plus, ListTodo, CheckSquare, Calendar, User, Briefcase } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../ui/card';
 import { Button } from '../../../ui/button';
@@ -22,11 +22,67 @@ export const EnhancedAssistantActions: React.FC<EnhancedAssistantActionsProps> =
 }) => {
   const [selectedActions, setSelectedActions] = useState<Set<string>>(new Set());
   const [executingActions, setExecutingActions] = useState<Set<string>>(new Set());
-  const [executedActions, setExecutedActions] = useState<Set<string>>(new Set());
 
   if (!note.assistantActions || note.assistantActions.length === 0) {
     return null;
   }
+
+  // Check if action is actually executed by looking for created items in moduleData
+  const isActionReallyExecuted = (action: AssistantAction): boolean => {
+    // First check if it's marked as executed in the note
+    if (action.executed) return true;
+    
+    // Then check if the item actually exists in the moduleData
+    switch (action.type) {
+      case 'create-task':
+        return moduleData.tasks?.some(task => 
+          task.sourceNoteId === action.sourceNoteId && 
+          task.title === action.data.title
+        ) || false;
+        
+      case 'create-event':
+        return moduleData.calendar?.some(event => 
+          event.sourceNoteId === action.sourceNoteId && 
+          event.title === action.data.title
+        ) || false;
+        
+      case 'create-contact':
+        return moduleData.contacts?.some(contact => 
+          contact.sourceNoteId === action.sourceNoteId && 
+          contact.name === action.data.name
+        ) || false;
+        
+      case 'create-project':
+        return moduleData.projects?.some(project => 
+          project.sourceNoteId === action.sourceNoteId && 
+          project.name === action.data.name
+        ) || false;
+        
+      default:
+        return false;
+    }
+  };
+
+  // Update the note's action execution status based on what actually exists
+  useEffect(() => {
+    let needsUpdate = false;
+    const updatedActions = note.assistantActions?.map(action => {
+      const actuallyExecuted = isActionReallyExecuted(action);
+      if (action.executed !== actuallyExecuted) {
+        needsUpdate = true;
+        return { ...action, executed: actuallyExecuted };
+      }
+      return action;
+    });
+
+    if (needsUpdate && updatedActions) {
+      const updatedNote = { ...note, assistantActions: updatedActions };
+      const updatedNotes = moduleData.notes.map(n => 
+        n.id === note.id ? updatedNote : n
+      );
+      setModuleData({ ...moduleData, notes: updatedNotes });
+    }
+  }, [note.id, moduleData]); // Re-run when moduleData changes
 
   // Group actions by type
   const taskActions = note.assistantActions.filter(action => action.type === 'create-task');
@@ -99,7 +155,7 @@ export const EnhancedAssistantActions: React.FC<EnhancedAssistantActionsProps> =
 
   const executeSingleAction = async (action: AssistantAction) => {
     // Check if already executed or executing
-    if (action.executed || executingActions.has(action.id) || executedActions.has(action.id)) {
+    if (isActionReallyExecuted(action) || executingActions.has(action.id)) {
       return;
     }
 
@@ -129,9 +185,7 @@ export const EnhancedAssistantActions: React.FC<EnhancedAssistantActionsProps> =
           break;
       }
       
-      // Mark action as executed in local state AND note data
-      setExecutedActions(prev => new Set(prev).add(action.id));
-      
+      // Mark action as executed in note data
       const updatedNote = {
         ...note,
         assistantActions: note.assistantActions?.map(a => 
@@ -159,7 +213,7 @@ export const EnhancedAssistantActions: React.FC<EnhancedAssistantActionsProps> =
 
   const executeSelectedActions = async () => {
     const actionsToExecute = note.assistantActions?.filter(action => 
-      selectedActions.has(action.id) && !action.executed && !executedActions.has(action.id)
+      selectedActions.has(action.id) && !isActionReallyExecuted(action)
     ) || [];
 
     if (actionsToExecute.length === 0) return;
@@ -169,7 +223,7 @@ export const EnhancedAssistantActions: React.FC<EnhancedAssistantActionsProps> =
       let executedCount = 0;
 
       for (const action of actionsToExecute) {
-        if (!executedActions.has(action.id)) {
+        if (!isActionReallyExecuted(action)) {
           const result = await executeAction(action);
           
           switch (action.type) {
@@ -187,7 +241,6 @@ export const EnhancedAssistantActions: React.FC<EnhancedAssistantActionsProps> =
               break;
           }
           
-          setExecutedActions(prev => new Set(prev).add(action.id));
           executedCount++;
         }
       }
@@ -228,7 +281,7 @@ export const EnhancedAssistantActions: React.FC<EnhancedAssistantActionsProps> =
       
       // Execute all task actions and add them to the todo list
       for (const action of taskActions) {
-        if (!executedActions.has(action.id)) {
+        if (!isActionReallyExecuted(action)) {
           const result = await executeAction(action);
           // Add the todo list tag to the created task
           const taskWithTodoTag = {
@@ -236,7 +289,6 @@ export const EnhancedAssistantActions: React.FC<EnhancedAssistantActionsProps> =
             tags: [...(result.tags || []), listTag]
           };
           updatedData.tasks = [taskWithTodoTag as any, ...updatedData.tasks];
-          setExecutedActions(prev => new Set(prev).add(action.id));
           createdCount++;
         }
       }
@@ -321,10 +373,6 @@ export const EnhancedAssistantActions: React.FC<EnhancedAssistantActionsProps> =
     }
   };
 
-  const isActionExecuted = (action: AssistantAction) => {
-    return action.executed || executedActions.has(action.id);
-  };
-
   const isActionExecuting = (action: AssistantAction) => {
     return executingActions.has(action.id);
   };
@@ -372,18 +420,18 @@ export const EnhancedAssistantActions: React.FC<EnhancedAssistantActionsProps> =
                     <Checkbox
                       checked={selectedActions.has(action.id)}
                       onCheckedChange={(checked: boolean) => handleActionSelection(action.id, checked as boolean)}
-                      disabled={isActionExecuted(action)}
+                      disabled={isActionReallyExecuted(action)}
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">{action.title}</span>
                         <div className="flex items-center gap-2">
-                          {isActionExecuted(action) && (
+                          {isActionReallyExecuted(action) && (
                             <Badge variant="secondary" className="text-xs">
                               ✓ Done
                             </Badge>
                           )}
-                          {!isActionExecuted(action) && (
+                          {!isActionReallyExecuted(action) && (
                             <Button
                               onClick={() => executeSingleAction(action)}
                               size="sm"
@@ -423,7 +471,7 @@ export const EnhancedAssistantActions: React.FC<EnhancedAssistantActionsProps> =
                     <Checkbox
                       checked={selectedActions.has(action.id)}
                       onCheckedChange={(checked: boolean) => handleActionSelection(action.id, checked as boolean)}
-                      disabled={isActionExecuted(action)}
+                      disabled={isActionReallyExecuted(action)}
                     />
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
@@ -432,12 +480,12 @@ export const EnhancedAssistantActions: React.FC<EnhancedAssistantActionsProps> =
                           <span className="text-sm font-medium">{action.title}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          {isActionExecuted(action) && (
+                          {isActionReallyExecuted(action) && (
                             <Badge variant="secondary" className="text-xs">
                               ✓ Done
                             </Badge>
                           )}
-                          {!isActionExecuted(action) && (
+                          {!isActionReallyExecuted(action) && (
                             <Button
                               onClick={() => executeSingleAction(action)}
                               size="sm"
